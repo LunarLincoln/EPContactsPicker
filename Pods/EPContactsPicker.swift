@@ -204,6 +204,8 @@ open class EPContactsPicker: UITableViewController, UISearchResultsUpdating, UIS
                         //If ordering has to be happening via family name change it here.
                         if let firstLetter = contact.familyName[0..<1] , firstLetter.containsAlphabets() {
                             key = firstLetter.uppercased()
+                        } else if let firstLetter = contact.givenName[0..<1] , firstLetter.containsAlphabets() {
+                            key = firstLetter.uppercased()
                         }
                         var contacts = [CNContact]()
                         
