@@ -14,7 +14,7 @@ DESC
   s.homepage         = "https://github.com/ipraba/EPContactsPicker"
   s.license          = 'MIT'
   s.author           = { "Prabaharan" => "mailprabaharan.e@gmail.com" }
-  s.source           = { :git => "https://github.com/ipraba/EPContactsPicker.git", :tag => s.version.to_s }
+  s.source           = { :git => "https://github.com/LunarLincoln/EPContactsPicker.git", :branch => "updates/swift-4" }
   s.platform     = :ios, '9.0'
   s.requires_arc = true
   s.source_files = 'Pods'
