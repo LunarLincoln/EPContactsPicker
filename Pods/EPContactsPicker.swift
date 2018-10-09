@@ -15,6 +15,7 @@ public protocol EPPickerDelegate: class {
     func epContactPicker(_: EPContactsPicker, didCancel error: NSError)
     func epContactPicker(_: EPContactsPicker, didSelectContact contact: EPContact)
 	func epContactPicker(_: EPContactsPicker, didSelectMultipleContacts contacts: [EPContact])
+    func shouldShowContact(contact: CNContact) -> Bool
 }
 
 public extension EPPickerDelegate {
@@ -22,6 +23,8 @@ public extension EPPickerDelegate {
 	func epContactPicker(_: EPContactsPicker, didCancel error: NSError) { }
 	func epContactPicker(_: EPContactsPicker, didSelectContact contact: EPContact) { }
 	func epContactPicker(_: EPContactsPicker, didSelectMultipleContacts contacts: [EPContact]) { }
+    //expose to allow ability to filter contacts as they're enumerated
+    func shouldShowContact(contact: CNContact) -> Bool { return true }
 }
 
 typealias ContactsHandler = (_ contacts : [CNContact] , _ error : NSError?) -> Void
@@ -49,6 +52,8 @@ open class EPContactsPicker: UITableViewController, UISearchResultsUpdating, UIS
     var subtitleCellValue = SubtitleCellValue.phoneNumber
     var multiSelectEnabled: Bool = false //Default is single selection contact
     
+    
+    var isCancelling : Bool = false
     // MARK: - Lifecycle Methods
     
     override open func viewDidLoad() {
@@ -188,6 +193,11 @@ open class EPContactsPicker: UITableViewController, UISearchResultsUpdating, UIS
                 
                 do {
                     try contactsStore?.enumerateContacts(with: contactFetchRequest, usingBlock: { (contact, stop) -> Void in
+                        
+                        if self.contactDelegate?.shouldShowContact(contact: contact) == false {
+                            return
+                        }
+                        
                         //Ordering contacts based on alphabets in firstname
                         contactsArray.append(contact)
                         var key: String = "#"
@@ -342,9 +352,12 @@ open class EPContactsPicker: UITableViewController, UISearchResultsUpdating, UIS
     
     open func updateSearchResults(for searchController: UISearchController)
     {
-        if let searchText = resultSearchController.searchBar.text , searchController.isActive {
+        if isCancelling {
+            isCancelling = false
+            return
+        } else if let searchText = resultSearchController.searchBar.text , searchController.isActive {
             
-            let predicate: NSPredicate
+            var predicate: NSPredicate?
             if searchText.characters.count > 0 {
                 predicate = CNContact.predicateForContacts(matchingName: searchText)
             } else {
@@ -353,8 +366,23 @@ open class EPContactsPicker: UITableViewController, UISearchResultsUpdating, UIS
             
             let store = CNContactStore()
             do {
-                filteredContacts = try store.unifiedContacts(matching: predicate,
-                    keysToFetch: allowedContactKeys())
+                filteredContacts.removeAll()
+                
+                let contactFetchRequest = CNContactFetchRequest(keysToFetch: allowedContactKeys())
+                contactFetchRequest.predicate = predicate
+                
+                try store.enumerateContacts(with: contactFetchRequest, usingBlock:
+                { (contact, stop) in
+                    if self.contactDelegate?.shouldShowContact(contact: contact) == false {
+                        return
+                    }
+                    
+                    self.filteredContacts.append(contact)
+                })
+                
+                print("\(filteredContacts.count) count")
+                self.tableView.reloadData()
+                
                 //print("\(filteredContacts.count) count")
                 
                 self.tableView.reloadData()
@@ -367,7 +395,7 @@ open class EPContactsPicker: UITableViewController, UISearchResultsUpdating, UIS
     }
     
     open func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
-        
+        isCancelling = true
         DispatchQueue.main.async(execute: {
             self.tableView.reloadData()
         })
